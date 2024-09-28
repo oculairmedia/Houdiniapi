@@ -8,6 +8,34 @@ sys.path.insert(0, houdini_python_path)
 
 import hrpyc
 
+def print_geometry_graph(node):
+    def print_node_info(node, indent=""):
+        print(f"{indent}{node.name()} ({node.type().name()})")
+        
+        # Print parameters
+        for parm in node.parms():
+            print(f"{indent}  Parameter: {parm.name()} = {parm.eval()}")
+        
+        # Print attributes if it's a geometry node
+        if node.type().category().name() == "Sop":
+            geo = node.geometry()
+            if geo:
+                for attrib in geo.pointAttribs():
+                    print(f"{indent}  Point Attribute: {attrib.name()}")
+                for attrib in geo.vertexAttribs():
+                    print(f"{indent}  Vertex Attribute: {attrib.name()}")
+                for attrib in geo.primAttribs():
+                    print(f"{indent}  Primitive Attribute: {attrib.name()}")
+                for attrib in geo.globalAttribs():
+                    print(f"{indent}  Global Attribute: {attrib.name()}")
+        
+        # Recursively print child nodes
+        for child in node.children():
+            print_node_info(child, indent + "  ")
+
+    print("Geometry Graph:")
+    print_node_info(node)
+
 try:
     print("Attempting to connect to Houdini RPC server...")
     connection, hou = hrpyc.import_remote_module()
@@ -15,42 +43,25 @@ try:
 
     # Create a new geometry node
     obj = hou.node("/obj")
-    if obj is None:
-        print("Error: Could not find /obj node")
-    else:
-        print("Successfully found /obj node")
-        geo = obj.createNode("geo", "my_geometry")
-        if geo is None:
-            print("Error: Could not create geometry node")
-        else:
-            print("Successfully created geometry node")
-            
-            # Create a sphere inside the geometry node
-            sphere = geo.createNode("sphere", "my_sphere")
-            if sphere is None:
-                print("Error: Could not create sphere node")
-            else:
-                print("Successfully created sphere node")
-                
-                # Set parameters for the sphere
-                for axis in ['x', 'y', 'z']:
-                    rad_parm = sphere.parm(f"rad{axis}")
-                    if rad_parm is None:
-                        print(f"Error: Could not find 'rad{axis}' parameter")
-                    else:
-                        rad_parm.set(2.0)
-                        print(f"Successfully set rad{axis} to 2.0")
+    geo = obj.createNode("geo", "my_geometry")
 
-                type_parm = sphere.parm("type")
-                if type_parm is None:
-                    print("Error: Could not find 'type' parameter")
-                else:
-                    type_parm.set(1)  # Set to "polygon sphere"
-                    print("Successfully set type to polygon sphere")
+    # Create a sphere inside the geometry node
+    sphere = geo.createNode("sphere", "my_sphere")
 
-            print("Attempting to save the Houdini scene...")
-            hou.hipFile.save('e:/PROJECTS/houdini python integration/houdini connection test/sphere_scene.hip')
-            print("Saved the scene as sphere_scene.hip")
+    # Set some parameters for the sphere
+    sphere.parm("radx").set(2.0)
+    sphere.parm("rady").set(2.0)
+    sphere.parm("radz").set(2.0)
+    sphere.parm("type").set(1)  # Set to "polygon sphere"
+
+    print("Successfully created a sphere in Houdini")
+
+    # Print the geometry graph
+    print_geometry_graph(geo)
+
+    # Save the Houdini scene
+    hou.hipFile.save('e:/PROJECTS/houdini python integration/houdini connection test/sphere_scene.hip')
+    print("Saved the scene as sphere_scene.hip")
 
     # Keep the connection open until the user presses Enter
     input("Press Enter to close the connection...")
